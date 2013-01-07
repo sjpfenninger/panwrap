@@ -112,7 +112,7 @@ def process_input(inputfile, output_format, template=None, csl=None, pandoc_opti
     if csl:
         settings_global['csl'] = csl
     if 'template' in settings_global:
-        templatesettings = settings_global['template'].replace('.template', '.conf')
+        templatesettings = settings_global['template'].replace('.tex', '.conf')
     else:
         templatesettings = '{}/defaults.conf'.format(PANPY_DIR)
     settings_template = parse_settings(os.path.expanduser(templatesettings), force_parsing=True)
