@@ -149,6 +149,10 @@ def process_input(inputfile, output_format, template=None, csl=None, pandoc_opti
         if isinstance(val, dict):
             for k, v in val.iteritems():
                 pandoc_exec.append('--variable={0}:{1}={2}'.format(key, k, v))
+        elif key == 'header':
+            pandoc_exec.append('--include-in-header={}'.format(os.path.expanduser(val)))
+        elif key == 'body':
+            pandoc_exec.append('--include-before-body={}'.format(os.path.expanduser(val)))
         else:
             pandoc_exec.append('--variable={0}:{1}'.format(key, val))
     # Output filename
@@ -172,6 +176,6 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--template', metavar='..', dest='template', type=str, help='Path to custom template (default: use setting from {}/global.conf or pandoc default).'.format(PANPY_DIR))
     parser.add_argument('-c', '--csl', metavar='..', dest='csl', type=str, help='Path to custom CSL file (default: use setting from {}/global.conf)'.format(PANPY_DIR))
     parser.add_argument('--pandoc-options', metavar='..', dest='pandoc_options', type=str, help='Additional options to pass to pandoc (like so: ++foo=bar or +f=bar.)')
-    parser.add_argument('--no-replacements', dest='replacements', action='store_const', const=False, default=True, help='Do not apply replacements from replacements.conf.')
+    parser.add_argument('--no-replacements', dest='replacements', action='store_const', const=False, default=True, help='Do not apply replacements from {}/replacements.conf.'.format(PANPY_DIR))
     args = parser.parse_args()
     process_input(args.file, output_format=args.output, template=args.template, csl=args.csl, pandoc_options=args.pandoc_options, replacements=args.replacements)
