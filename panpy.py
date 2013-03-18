@@ -36,7 +36,7 @@ def parse_settings(source_file, force_parsing=False):
         force_parsing : if False (default), will search for '<!--' before begining to parse, and stop at '-->'
 
     """
-    pathsettings = ('csl', 'bibliography', 'template')
+    pathsettings = ('pandoc', 'template', 'bibliography', 'csl')
     listsettings = ('geometry')
     lines = open(source_file).readlines()
     parsing = False
@@ -89,7 +89,7 @@ def process_replacements(inputfile, replacement_settings):
     return lines
 
 
-def process_input(inputfile, output_format, template=None, csl=None, pandoc_options=None, replacements=True, globalsettings='{}/global.conf'.format(PANPY_DIR)):
+def process_input(inputfile, output_format, template=None, csl=None, pandoc_options=None, replacements=True, bib=True, verbose=False, globalsettings='{}/global.conf'.format(PANPY_DIR)):
     """Process `inputfile` with pandoc, using the given template and CSL file, producing a PDF file with the same name.
 
     Returns:
@@ -102,6 +102,8 @@ def process_input(inputfile, output_format, template=None, csl=None, pandoc_opti
         csl : Path to CSL file (if None, uses default read from globalsettings).
         pandoc_options : Additional options to pass to pandoc (must give as ++foo=bar or +f=bar), + will be replaced with -.
         replacements : Whether to apply text replacements from replacements.conf before processing with pandoc (default: True).
+        bib : Whether to process the bibliography (default: True).
+        verbose : Show more details (default: False).
         globalsettings : Path to global settings file.
 
     """
@@ -143,16 +145,23 @@ def process_input(inputfile, output_format, template=None, csl=None, pandoc_opti
     # Global settings
     for key, val in settings_global.iteritems():
         if key != 'pandoc':  # 'pandoc' is the only option we don't actually pass on, as it's simply the pandoc binary's path!
+            if (not bib) and (key == 'bibliography'):
+                continue
             pandoc_exec.append('--{0}={1}'.format(key, val))
     # Template settings
     for key, val in settings_template.iteritems():
         if isinstance(val, dict):
             for k, v in val.iteritems():
                 pandoc_exec.append('--variable={0}:{1}={2}'.format(key, k, v))
+        elif val == '':  # If an option has no value it is skipped
+            continue
         elif key == 'header':
             pandoc_exec.append('--include-in-header={}'.format(os.path.expanduser(val)))
         elif key == 'body':
             pandoc_exec.append('--include-before-body={}'.format(os.path.expanduser(val)))
+        elif key == 'pandoc-options':
+            for o in val.split(','):
+                pandoc_exec.append('--{}'.format(o))
         else:
             pandoc_exec.append('--variable={0}:{1}'.format(key, val))
     # Output filename
@@ -161,7 +170,8 @@ def process_input(inputfile, output_format, template=None, csl=None, pandoc_opti
         for option in pandoc_options.split(' '):
             pandoc_exec.append(option.replace('+', '-'))
     pandoc_exec.append(sourcefile_path)
-    print '>>> Executing: ' + ' '.join(pandoc_exec)
+    if verbose:
+        print '>>> Executing: ' + ' '.join(pandoc_exec)
     p = subprocess.call(pandoc_exec)
     if replacements:
         os.remove(sourcefile_path)
@@ -177,5 +187,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--csl', metavar='..', dest='csl', type=str, help='Path to custom CSL file (default: use setting from {}/global.conf)'.format(PANPY_DIR))
     parser.add_argument('--pandoc-options', metavar='..', dest='pandoc_options', type=str, help='Additional options to pass to pandoc (like so: ++foo=bar or +f=bar.)')
     parser.add_argument('--no-replacements', dest='replacements', action='store_const', const=False, default=True, help='Do not apply replacements from {}/replacements.conf.'.format(PANPY_DIR))
+    parser.add_argument('--no-bib', dest='bib', action='store_const', const=False, default=True, help='Do not process bibliography.')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_const', const=True, default=False, help='Show more details.')
     args = parser.parse_args()
-    process_input(args.file, output_format=args.output, template=args.template, csl=args.csl, pandoc_options=args.pandoc_options, replacements=args.replacements)
+    process_input(args.file, output_format=args.output, template=args.template, csl=args.csl, pandoc_options=args.pandoc_options, replacements=args.replacements, bib=args.bib, verbose=args.verbose)
