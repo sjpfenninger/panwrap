@@ -38,7 +38,8 @@ def parse_settings(source_file, force_parsing=False):
 
     """
     pathsettings = ('pandoc', 'template', 'bibliography', 'csl')
-    listsettings = ('geometry')
+    dictsettings = ('geometry')
+    listsettings = ('header', 'footer')
     lines = open(source_file).readlines()
     parsing = False
     settings = {}
@@ -60,12 +61,17 @@ def parse_settings(source_file, force_parsing=False):
             key, val = line.strip().split(':')
             if key in pathsettings:
                 settings[key] = os.path.expanduser(val)
-            elif key in listsettings:
+            elif key in dictsettings:
                     k, v = val.split('=')
                     if key in settings:
                         settings[key][k] = v
                     else:
                         settings[key] = {k: v}
+            elif key in listsettings:
+                    if key in settings:
+                        settings[key].append(val)
+                    else:
+                        settings[key] = [val]
             else:
                 settings[key] = val
     return settings
@@ -122,6 +128,7 @@ def process_input(inputfile, output_format, template=None, csl=None,
         globalsettings : Path to global settings file.
 
     """
+    tempfile = {}  # Dict to hold paths to temporary files
     settings_global = parse_settings(os.path.expanduser(globalsettings),
                                      force_parsing=True)
     pandoc = settings_global['pandoc']
@@ -148,6 +155,7 @@ def process_input(inputfile, output_format, template=None, csl=None,
         with open(newfile_path, 'w') as f:
             f.writelines(lines)
         sourcefile_path = newfile_path
+        tempfile['replacements'] = newfile_path
     # Override template defaults with settings given in the source file
     settings_template_source = parse_settings(sourcefile_path)
     for key, val in settings_template_source.iteritems():
@@ -172,11 +180,21 @@ def process_input(inputfile, output_format, template=None, csl=None,
             pandoc_exec.append('--{0}={1}'.format(key, val))
     # Template settings
     for key, val in settings_template.iteritems():
-        if isinstance(val, dict):
+        if val == '':
+            # If an option has no value it is skipped
+            continue
+        elif isinstance(val, dict):
             for k, v in val.iteritems():
                 pandoc_exec.append('--variable={0}:{1}={2}'.format(key, k, v))
-        elif val == '':  # If an option has no value it is skipped
-            continue
+        elif isinstance(val, list):
+            # Special case for header and body
+            assert key == 'header' or key == 'body'
+            tempfile[key] = '{}.{}.{}'.format(basefile, key, extension)
+            with open(tempfile[key], 'w') as f:
+                [f.write(v + '\n') for v in val]
+            onames = {'body': 'before-body', 'header': 'in-header'}
+            pandoc_exec.append('--include-{}={}'.format(
+                               onames[key], tempfile[key]))
         elif key == 'header':
             pandoc_exec.append('--include-in-header={}'.format(
                                os.path.expanduser(val)))
@@ -197,9 +215,10 @@ def process_input(inputfile, output_format, template=None, csl=None,
     if verbose:
         print '>>> Executing: ' + ' '.join(pandoc_exec)
     p = subprocess.call(pandoc_exec)
-    if replacements:
-        os.remove(sourcefile_path)
-    return p
+    # Clean up temporary files
+    if tempfile:
+        for v in tempfile.values():
+            os.remove(v)
 
 
 # If script is called directly, read command-line arguments
