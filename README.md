@@ -18,7 +18,7 @@ Call panpy with `-h` to get help:
 
 ### Defining variables inside a markdown file ###
 
-To set variables such as fontsize or margins in a markdown file, add a HTML comment block at the top of the file:
+To set variables such as fontsize or margins in a markdown file, add a HTML comment block at the top of the file (the first HTML comment block in the file is parsed as settings):
 
     <!--
     fontsize:11pt
@@ -30,7 +30,7 @@ Parsing is not robust at all: the begin and end comment tags must be on a line o
 
 ### Using custom templates ###
 
-See `xetex-custom.tex` for an example of a custom template. Use it by calling panpy with `--template=~\.panpy\xetex-custom.tex`. Default settings for variables are automatically read from a `.conf` file in the same location as the template file itself.
+See `default-enhanced.tex` for an example of a custom template. Use it by calling panpy with `--template=~\.panpy\default-enhanced.tex`. Default settings for variables are automatically read from a `.conf` file in the same location as the template file itself.
 
 ## Configuration ##
 
@@ -69,7 +69,3 @@ along with this program.  If not, see <[http://www.gnu.org/licenses/](http://www
 Author: [Stefan Pfenninger](http://pfenninger.org/)
 
 Source code available from [https://github.com/sjpfenninger/panpy](https://github.com/sjpfenninger/panpy)
-
-xetex-custom template is based on:
-
-[https://github.com/claes/pandoc-templates](https://github.com/claes/pandoc-templates)
