@@ -76,31 +76,8 @@ def parse_settings(source_file, force_parsing=False):
     return settings
 
 
-def process_replacements(inputfile, replacement_settings):
-    """Process replacements
-
-    Args:
-        inputfile : path to the input file
-        replacement_settings : a dict containing replacement mappings
-            (key replaced with val)
-
-    Returns:
-        lines : the lines of inputfile with applied replacements
-
-    """
-    import codecs
-    input_file = codecs.open(inputfile, 'r')
-    lines = []
-    for line in input_file.readlines():
-        for key, val in replacement_settings.iteritems():
-            line = line.replace(key, val)
-        lines.append(line)
-    return lines
-
-
 def process_input(inputfile, output_format, template=None, csl=None,
-                  pandoc_options=None, replacements=True, bib=True,
-                  verbose=False,
+                  pandoc_options=None, bib=True, verbose=False,
                   globalsettings=None, panpy_dir='.'):
     """Process `inputfile` with pandoc, using the given template and
     CSL file, producing a PDF file with the same name.
@@ -119,9 +96,6 @@ def process_input(inputfile, output_format, template=None, csl=None,
               globalsettings).
         pandoc_options : Additional options to pass to pandoc (must give
                          as ++foo=bar or +f=bar), + will be replaced with -.
-        replacements : Whether to apply text replacements from
-                       replacements.conf before processing with pandoc
-                       (default: True).
         bib : Whether to process the bibliography (default: True).
         verbose : Show more details (default: False).
         globalsettings : Path to global settings file.
@@ -135,10 +109,12 @@ def process_input(inputfile, output_format, template=None, csl=None,
                                      force_parsing=True)
     pandoc = settings_global['pandoc']
     if template:
-        settings_global['template'] = template
+        settings_global['template'] = '{}/{}'.format(panpy_dir, template)
     if csl:
         settings_global['csl'] = csl
     if 'template' in settings_global:
+        settings_global['template'] = '{}/{}'.format(panpy_dir,
+                                                     settings_global['template'])
         templatesettings = settings_global['template'].replace('.tex', '.conf')
     else:
         templatesettings = '{}/defaults.conf'.format(panpy_dir)
@@ -148,16 +124,6 @@ def process_input(inputfile, output_format, template=None, csl=None,
     # Get the filename without the extension
     basefile = '.'.join(sourcefile_path.split('.')[0:-1])
     extension = inputfile.split('.')[-1]
-    if replacements:
-        replacement_settings = parse_settings(
-            os.path.expanduser('{}/replacements.conf'.format(panpy_dir)),
-            force_parsing=True)
-        lines = process_replacements(sourcefile_path, replacement_settings)
-        newfile_path = '{0}.replaced.{1}'.format(basefile, extension)
-        with open(newfile_path, 'w') as f:
-            f.writelines(lines)
-        sourcefile_path = newfile_path
-        tempfile['replacements'] = newfile_path
     # Override template defaults with settings given in the source file
     settings_template_source = parse_settings(sourcefile_path)
     for key, val in settings_template_source.iteritems():
@@ -243,10 +209,6 @@ if __name__ == '__main__':
     parser.add_argument('--pandoc-options', metavar='..', dest='pandoc_options',
                         type=str, help='Additional options to pass to pandoc '
                         '(like so: --pandoc-options="++foo=bar ++option").')
-    parser.add_argument('--no-replacements', dest='replacements',
-                        action='store_const', const=False, default=True,
-                        help='Do not apply replacements from '
-                        '{panpy_dir}/replacements.conf.')
     parser.add_argument('--no-bib', dest='bib', action='store_const',
                         const=False, default=True,
                         help='Do not process bibliography.')
@@ -259,5 +221,5 @@ if __name__ == '__main__':
     p = process_input(args.file, output_format=args.output,
                       template=args.template,
                       csl=args.csl, pandoc_options=args.pandoc_options,
-                      replacements=args.replacements, bib=args.bib,
-                      verbose=args.verbose, panpy_dir=args.panpydir)
+                      bib=args.bib, verbose=args.verbose,
+                      panpy_dir=args.panpydir)
