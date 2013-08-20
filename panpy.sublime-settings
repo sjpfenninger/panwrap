@@ -1,0 +1,13 @@
+{
+    "pandoc": "~/.cabal/bin/pandoc",
+    // If template not set below, panpy uses pandoc's default template
+    // "template":"~/.panpy/default-enhanced.tex",
+    "bibliography": "~/.bib/library.bib",
+    "csl": "~/.csl/elsevier-harvard.csl",
+    "default_config_block": "defaults.conf",
+    "use_replacements": true,
+    "replacements": {
+        "--->": "$\\rightarrow$",
+        "<---": "$\\leftarrow$"
+    }
+}

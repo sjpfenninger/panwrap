@@ -23,7 +23,6 @@ import os
 import subprocess
 import argparse
 
-PANPY_DIR = '~/.panpy'
 
 def parse_settings(source_file, force_parsing=False):
     """Barebones parser for lists of "key:val\n" type settings.
@@ -102,7 +101,7 @@ def process_replacements(inputfile, replacement_settings):
 def process_input(inputfile, output_format, template=None, csl=None,
                   pandoc_options=None, replacements=True, bib=True,
                   verbose=False,
-                  globalsettings='{}/global.conf'.format(PANPY_DIR)):
+                  globalsettings=None, panpy_dir='.'):
     """Process `inputfile` with pandoc, using the given template and
     CSL file, producing a PDF file with the same name.
 
@@ -126,8 +125,11 @@ def process_input(inputfile, output_format, template=None, csl=None,
         bib : Whether to process the bibliography (default: True).
         verbose : Show more details (default: False).
         globalsettings : Path to global settings file.
+        panpy_dir: Path to panpy directory.
 
     """
+    if not globalsettings:
+        globalsettings = '{}/global.conf'.format(panpy_dir)
     tempfile = {}  # Dict to hold paths to temporary files
     settings_global = parse_settings(os.path.expanduser(globalsettings),
                                      force_parsing=True)
@@ -139,16 +141,16 @@ def process_input(inputfile, output_format, template=None, csl=None,
     if 'template' in settings_global:
         templatesettings = settings_global['template'].replace('.tex', '.conf')
     else:
-        templatesettings = '{}/defaults.conf'.format(PANPY_DIR)
+        templatesettings = '{}/defaults.conf'.format(panpy_dir)
     settings_template = parse_settings(os.path.expanduser(templatesettings),
                                        force_parsing=True)
     sourcefile_path = os.path.expanduser(inputfile)
     # Get the filename without the extension
-    basefile = ''.join(sourcefile_path.split('.')[0:-1])
+    basefile = '.'.join(sourcefile_path.split('.')[0:-1])
     extension = inputfile.split('.')[-1]
     if replacements:
         replacement_settings = parse_settings(
-            os.path.expanduser('{}/replacements.conf'.format(PANPY_DIR)),
+            os.path.expanduser('{}/replacements.conf'.format(panpy_dir)),
             force_parsing=True)
         lines = process_replacements(sourcefile_path, replacement_settings)
         newfile_path = '{0}.replaced.{1}'.format(basefile, extension)
@@ -170,6 +172,7 @@ def process_input(inputfile, output_format, template=None, csl=None,
     pandoc_exec = [pandoc]
     pandoc_exec.append('--latex-engine=xelatex')
     pandoc_exec.append('--smart')  # Produce typographically correct output
+    pandoc_exec.append('--columns=98')  # Correct table width for editor colwidth
     # Global settings
     for key, val in settings_global.iteritems():
         # 'pandoc' is the only option we don't actually pass on,
@@ -213,12 +216,13 @@ def process_input(inputfile, output_format, template=None, csl=None,
             pandoc_exec.append(option.replace('+', '-'))
     pandoc_exec.append(sourcefile_path)
     if verbose:
-        print '>>> Executing: ' + ' '.join(pandoc_exec)
-    p = subprocess.call(pandoc_exec)
+        print('>>> Executing: ' + ' '.join(pandoc_exec))
+    p = subprocess.call(pandoc_exec, stderr=subprocess.STDOUT)
     # Clean up temporary files
     if tempfile:
         for v in tempfile.values():
             os.remove(v)
+    return p
 
 
 # If script is called directly, read command-line arguments
@@ -231,25 +235,29 @@ if __name__ == '__main__':
                         help='Pandoc output format (default: pdf).')
     parser.add_argument('-t', '--template', metavar='..', dest='template',
                         type=str, help='Path to custom template (default: use '
-                        'setting from {}/global.conf '
-                        'or pandoc default).'.format(PANPY_DIR))
+                        'setting from {panpy_dir}/global.conf '
+                        'or pandoc default).')
     parser.add_argument('-c', '--csl', metavar='..', dest='csl', type=str,
                         help='Path to custom CSL file (default: use setting '
-                        'from {}/global.conf)'.format(PANPY_DIR))
+                        'from {panpy_dir}/global.conf)')
     parser.add_argument('--pandoc-options', metavar='..', dest='pandoc_options',
                         type=str, help='Additional options to pass to pandoc '
                         '(like so: --pandoc-options="++foo=bar ++option").')
     parser.add_argument('--no-replacements', dest='replacements',
                         action='store_const', const=False, default=True,
                         help='Do not apply replacements from '
-                        '{}/replacements.conf.'.format(PANPY_DIR))
+                        '{panpy_dir}/replacements.conf.')
     parser.add_argument('--no-bib', dest='bib', action='store_const',
                         const=False, default=True,
                         help='Do not process bibliography.')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_const',
                         const=True, default=False, help='Show more details.')
+    parser.add_argument('--panpy-dir', dest='panpydir', type=str,
+                        help='Set panpy_dir, the directory where the script and'
+                        ' configuration files reside (default: ".")')
     args = parser.parse_args()
-    process_input(args.file, output_format=args.output, template=args.template,
-                  csl=args.csl, pandoc_options=args.pandoc_options,
-                  replacements=args.replacements, bib=args.bib,
-                  verbose=args.verbose)
+    p = process_input(args.file, output_format=args.output,
+                      template=args.template,
+                      csl=args.csl, pandoc_options=args.pandoc_options,
+                      replacements=args.replacements, bib=args.bib,
+                      verbose=args.verbose, panpy_dir=args.panpydir)
