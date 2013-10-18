@@ -1,8 +1,14 @@
 {
-    "pandoc": "~/.cabal/bin/pandoc",
-    // If template not set below, panpy uses pandoc's default template
-    // "template": "elegant.tex",
-    "bibliography": "~/.bib/library.bib",
-    "csl": "~/.csl/elsevier-harvard.csl",
-    "default_config_block": "defaults.conf"
+    // Pandoc binary to use
+    "pandoc": "/usr/local/bin/pandoc",
+
+    // default_config_block holds the template settings used for pandoc's default template
+    "default_config_block": "themes/default.conf",
+
+    "paths": {
+        // If template not set below, panpy uses pandoc's default template
+        // "template": "themes/elegant.tex",
+        "bibliography": "~/.bib/library.bib",
+        "csl": "~/.csl/elsevier-harvard.csl"
+    }
 }

@@ -28,18 +28,12 @@
                             { "caption": "-" },
                             {
                                 "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/Panpy/Default (OSX).sublime-keymap",
-                                    "platform": "OSX"
-                                },
+                                "args": {"file": "${packages}/Panpy/Default.sublime-keymap"},
                                 "caption": "Key Bindings – Default"
                             },
                             {
                                 "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/User/Default (OSX).sublime-keymap",
-                                    "platform": "OSX"
-                                },
+                                "args": {"file": "${packages}/User/Default.sublime-keymap"},
                                 "caption": "Key Bindings – User"
                             }
                         ]

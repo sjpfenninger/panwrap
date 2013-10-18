@@ -19,9 +19,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
+import json
 import os
 import subprocess
-import argparse
 
 
 def parse_settings(source_file, force_parsing=False):
@@ -76,6 +77,15 @@ def parse_settings(source_file, force_parsing=False):
     return settings
 
 
+def parse_sublime_settings(source_file):
+    with open(source_file, 'r') as f:
+        lines = []
+        for l in f.readlines():
+            if not l.strip().startswith('//'):
+                lines.append(l)
+    return json.loads(''.join(lines))
+
+
 def process_input(inputfile, output_format, template=None, csl=None,
                   pandoc_options=None, bib=True, verbose=False,
                   globalsettings=None, panpy_dir='.'):
@@ -103,21 +113,23 @@ def process_input(inputfile, output_format, template=None, csl=None,
 
     """
     if not globalsettings:
-        globalsettings = '{}/global.conf'.format(panpy_dir)
+        globalsettings = '{}/panpy.sublime-settings'.format(panpy_dir)
     tempfile = {}  # Dict to hold paths to temporary files
-    settings_global = parse_settings(os.path.expanduser(globalsettings),
-                                     force_parsing=True)
+    settings_global = parse_sublime_settings(os.path.expanduser(globalsettings))
     pandoc = settings_global['pandoc']
     if template:
-        settings_global['template'] = '{}/{}'.format(panpy_dir, template)
+        settings_global['paths']['template'] = '{}/{}'.format(panpy_dir, template)
     if csl:
-        settings_global['csl'] = csl
-    if 'template' in settings_global:
-        settings_global['template'] = '{}/{}'.format(panpy_dir,
-                                                     settings_global['template'])
-        templatesettings = settings_global['template'].replace('.tex', '.conf')
+        settings_global['paths']['csl'] = csl
+    if 'template' in settings_global['paths'].keys():
+        settings_global['paths']['template'] = '{}/{}'.format(panpy_dir,
+                                                     settings_global['paths']['template'])
+        templatesettings = settings_global['paths']['template'].replace('.tex', '.conf')
     else:
-        templatesettings = '{}/defaults.conf'.format(panpy_dir)
+        # TODO check whether default_config_block is absolute path, if so,
+        # don't prepend panpy_dir to it!
+        templatesettings = '{}/{}'.format(panpy_dir,
+                                          settings_global['default_config_block'])
     settings_template = parse_settings(os.path.expanduser(templatesettings),
                                        force_parsing=True)
     sourcefile_path = os.path.expanduser(inputfile)
@@ -138,15 +150,14 @@ def process_input(inputfile, output_format, template=None, csl=None,
     pandoc_exec = [pandoc]
     pandoc_exec.append('--latex-engine=xelatex')
     pandoc_exec.append('--smart')  # Produce typographically correct output
+    pandoc_exec.append('--parse-raw')  # Pass through untranslatable html codes and latex environments
     pandoc_exec.append('--columns=98')  # Correct table width for editor colwidth
-    # Global settings
-    for key, val in settings_global.iteritems():
-        # 'pandoc' is the only option we don't actually pass on,
-        # as it's simply the pandoc binary's path!
-        if key != 'pandoc':
+    # Global settings: only items from 'paths' subdict are passed on to pandoc!
+    for key, val in settings_global['paths'].iteritems():
+            # If bib is deactivated, don't set bibliography option
             if (not bib) and (key == 'bibliography'):
                 continue
-            pandoc_exec.append('--{0}={1}'.format(key, val))
+            pandoc_exec.append('--{0}={1}'.format(key, os.path.expanduser(val)))
     # Template settings
     for key, val in settings_template.iteritems():
         if val == '':
