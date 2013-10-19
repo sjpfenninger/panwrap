@@ -1,0 +1,21 @@
+# Additional pandoc options (added to pandoc-options-defaults)
+pandoc-options:
+
+# Template can be none or path to a template file (absolute or relative to the source file being processed)
+# To make it relative to the panwrap directory, use '{PANWRAP}', for example:
+# template: '{PANWRAP}/templates/elegant.tex'
+template:
+
+# Lines to add to header or body (list of strings, added to defaults defined below)
+in-header-lines:
+before-body-lines:
+
+#
+# Defaults
+#
+
+# To override, these can also be redefined inside a source file
+pandoc-options-default: ['--latex-engine=xelatex', '--smart', '--parse-raw', '--columns=98', '--filter pandoc-citeproc']
+in-header-lines-default: ['\definecolor{refcolor}{rgb}{0,0.25,0.5}']
+before-body-lines-default:
+output: ['pdf']

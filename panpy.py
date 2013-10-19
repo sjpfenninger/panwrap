@@ -1,236 +1,244 @@
-#!/usr/bin/env python
-
-# * * *
-# panpy -- pandoc wrapper and template engine
-# Author: Stefan Pfenninger <http://pfenninger.org/>
-# * * *
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-
-import argparse
-import json
 import os
+import shutil
 import subprocess
+from .lib import yaml
+
+import sublime
+import sublime_plugin
 
 
-def parse_settings(source_file, force_parsing=False):
-    """Barebones parser for lists of "key:val\n" type settings.
+def _get_file_name():
+    return(sublime.active_window().active_view().file_name())
 
-    Returns:
-        settings : a dict with the parsed settings
 
-    Args:
-        source_file : path to a file
-        force_parsing : if False (default), will search for
-            '<!--' before begining to parse, and stop at '-->'
+def _parse_yaml(f):
+    y = yaml.load(open(f, 'r'))
+    path_entries = ['csl', 'bibliography', 'template']
+    for e in path_entries:
+        if (e in y) and (y[e] is not None):
+            y[e] = os.path.expanduser(y[e])
+    return y
 
-    """
-    pathsettings = ('pandoc', 'template', 'bibliography', 'csl')
-    dictsettings = ('geometry')
-    listsettings = ('header', 'footer')
-    lines = open(source_file).readlines()
+
+def _find_blocks(source, start_markers=['---'], end_markers=['---', '...']):
+    start_markers = tuple(start_markers)
+    end_markers = tuple(end_markers)
+    lines = open(source).readlines()
+    block_id = 0
+    blocks = {}
     parsing = False
-    settings = {}
     for line in lines:
-        if force_parsing:
+        if not parsing and line.startswith(start_markers):
             parsing = True
-        else:
-            if line.startswith("<!--"):
-                parsing = True
-                continue
-            elif line.startswith("-->"):
-                parsing = False
-                # End the loop here, i.e. we won't even look at
-                # possible html comments further down in the file
-                break
-        if parsing:
-            if not line.strip() or line.startswith('#'):
-                continue
-            key, val = line.strip().split(':')
-            if key in pathsettings:
-                settings[key] = os.path.expanduser(val)
-            elif key in dictsettings:
-                    k, v = val.split('=')
-                    if key in settings:
-                        settings[key][k] = v
-                    else:
-                        settings[key] = {k: v}
-            elif key in listsettings:
-                    if key in settings:
-                        settings[key].append(val)
-                    else:
-                        settings[key] = [val]
-            else:
-                settings[key] = val
-    return settings
-
-
-def parse_sublime_settings(source_file):
-    with open(source_file, 'r') as f:
-        lines = []
-        for l in f.readlines():
-            if not l.strip().startswith('//'):
-                lines.append(l)
-    return json.loads(''.join(lines))
-
-
-def process_input(inputfile, output_format, template=None, csl=None,
-                  pandoc_options=None, bib=True, verbose=False,
-                  globalsettings=None, panpy_dir='.'):
-    """Process `inputfile` with pandoc, using the given template and
-    CSL file, producing a PDF file with the same name.
-
-    Returns:
-        p : status code returned by pandoc
-
-    Args:
-        inputfile : Path to input file.
-        output_format : Pandoc-compatible output format, e.g. 'pdf',
-                        will be used as file suffix.
-        template : Path to template (if None, uses default read from
-                   globalsettings, and if none given there, uses
-                   pandoc default).
-        csl : Path to CSL file (if None, uses default read from
-              globalsettings).
-        pandoc_options : Additional options to pass to pandoc (must give
-                         as ++foo=bar or +f=bar), + will be replaced with -.
-        bib : Whether to process the bibliography (default: True).
-        verbose : Show more details (default: False).
-        globalsettings : Path to global settings file.
-        panpy_dir: Path to panpy directory.
-
-    """
-    if not globalsettings:
-        globalsettings = '{}/panpy.sublime-settings'.format(panpy_dir)
-    tempfile = {}  # Dict to hold paths to temporary files
-    settings_global = parse_sublime_settings(os.path.expanduser(globalsettings))
-    pandoc = settings_global['pandoc']
-    if template:
-        settings_global['paths']['template'] = '{}/{}'.format(panpy_dir, template)
-    if csl:
-        settings_global['paths']['csl'] = csl
-    if 'template' in settings_global['paths'].keys():
-        settings_global['paths']['template'] = '{}/{}'.format(panpy_dir,
-                                                     settings_global['paths']['template'])
-        templatesettings = settings_global['paths']['template'].replace('.tex', '.conf')
-    else:
-        # TODO check whether default_config_block is absolute path, if so,
-        # don't prepend panpy_dir to it!
-        templatesettings = '{}/{}'.format(panpy_dir,
-                                          settings_global['default_config_block'])
-    settings_template = parse_settings(os.path.expanduser(templatesettings),
-                                       force_parsing=True)
-    sourcefile_path = os.path.expanduser(inputfile)
-    # Get the filename without the extension
-    basefile = '.'.join(sourcefile_path.split('.')[0:-1])
-    extension = inputfile.split('.')[-1]
-    # Override template defaults with settings given in the source file
-    settings_template_source = parse_settings(sourcefile_path)
-    for key, val in settings_template_source.iteritems():
-        if isinstance(val, dict):
-            for k, v in val.iteritems():
-                    settings_template[key][k] = v
-        else:
-            if key in settings_template:
-                settings_template[key] = val
-            else:
-                raise ValueError('Unknown key: {}'.format(key))
-    pandoc_exec = [pandoc]
-    pandoc_exec.append('--latex-engine=xelatex')
-    pandoc_exec.append('--smart')  # Produce typographically correct output
-    pandoc_exec.append('--parse-raw')  # Pass through untranslatable html codes and latex environments
-    pandoc_exec.append('--columns=98')  # Correct table width for editor colwidth
-    # Global settings: only items from 'paths' subdict are passed on to pandoc!
-    for key, val in settings_global['paths'].iteritems():
-            # If bib is deactivated, don't set bibliography option
-            if (not bib) and (key == 'bibliography'):
-                continue
-            pandoc_exec.append('--{0}={1}'.format(key, os.path.expanduser(val)))
-    # Template settings
-    for key, val in settings_template.iteritems():
-        if val == '':
-            # If an option has no value it is skipped
+            blocks[block_id] = []
             continue
-        elif isinstance(val, dict):
-            for k, v in val.iteritems():
-                pandoc_exec.append('--variable={0}:{1}={2}'.format(key, k, v))
-        elif isinstance(val, list):
-            # Special case for header and body
-            assert key == 'header' or key == 'body'
-            tempfile[key] = '{}.{}.{}'.format(basefile, key, extension)
-            with open(tempfile[key], 'w') as f:
-                [f.write(v + '\n') for v in val]
-            onames = {'body': 'before-body', 'header': 'in-header'}
-            pandoc_exec.append('--include-{}={}'.format(
-                               onames[key], tempfile[key]))
-        elif key == 'header':
-            pandoc_exec.append('--include-in-header={}'.format(
-                               os.path.expanduser(val)))
-        elif key == 'body':
-            pandoc_exec.append('--include-before-body={}'.format(
-                               os.path.expanduser(val)))
-        elif key == 'pandoc-options':
-            for o in val.split(','):
-                pandoc_exec.append('--{}'.format(o))
+        elif line.startswith(end_markers):
+            parsing = False
+            block_id += 1
+        if parsing:
+            blocks[block_id].append(line)
+    return blocks
+
+
+class ProcessPandocCommand(sublime_plugin.ApplicationCommand):
+    def run(self, **args):
+        f = _get_file_name()
+        PROCESSOR.process_input(f)
+
+
+class OpenPdfCommand(sublime_plugin.ApplicationCommand):
+    def run(self, **args):
+        pdf_name = '.'.join(_get_file_name().split('.')[0:-1]) + '.pdf'
+        cmd = PROCESSOR.plugin_settings.get('pdf_viewer')
+        subprocess.call(cmd.split() + [pdf_name])
+
+
+class PreviewCommand(sublime_plugin.ApplicationCommand):
+    def run(self, **args):
+        cmd = PROCESSOR.plugin_settings.get('preview')
+        subprocess.call(cmd.split() + [_get_file_name()])
+
+
+class PandocProcessor(object):
+    def plugin_loaded_setup(self):
+        self.plugin_settings_file = 'panpy.sublime-settings'
+        self.plugin_settings = sublime.load_settings(self.plugin_settings_file)
+
+    def process_input(self, source):
+        """Process `inputfile` with pandoc.
+
+        Returns:
+            p : status code returned by pandoc
+
+        """
+        tempfiles = {}  # Keeps track of temporary files
+        source = os.path.expanduser(source)
+        basefile, extension = os.path.splitext(source)  # split off extension
+        basepath, basefile = os.path.split(basefile)  # and split off the path
+        # Initialize pandoc_exec as a list with one item
+        pandoc_exec = ['pandoc']
+        panwrap = _parse_yaml(sublime.packages_path()
+                              + '/panpy/default_panwrap.yaml')
+        variables = _parse_yaml(sublime.packages_path()
+                                + '/panpy/default_variables.yaml')
+
+        #
+        # Find and load panwrap settings
+        #
+        panwrap_entry = 'panwrap_'
+        blocks = _find_blocks(source)
+        for _, block in blocks.items():
+            # Try to pass the block as YAML
+            try:
+                y = yaml.load('\n'.join(block))
+            except:  # TODO WHICHERROR
+                continue
+            # Try to access the panwrap_entry
+            try:
+                panwrap_loaded = y[panwrap_entry]
+                break
+            except KeyError:
+                continue
         else:
-            pandoc_exec.append('--variable={0}:{1}'.format(key, val))
-    # Output filename
-    pandoc_exec.append('--output={0}.{1}'.format(basefile, output_format))
-    if pandoc_options:
-        for option in pandoc_options.split(' '):
-            pandoc_exec.append(option.replace('+', '-'))
-    pandoc_exec.append(sourcefile_path)
-    if verbose:
-        print('>>> Executing: ' + ' '.join(pandoc_exec))
-    p = subprocess.call(pandoc_exec, stderr=subprocess.STDOUT)
-    # Clean up temporary files
-    if tempfile:
-        for v in tempfile.values():
-            os.remove(v)
-    return p
+            panwrap_loaded = {}
+
+        #
+        # Combine loaded panwrap settings with defaults_panwrap
+        #
+        p = panwrap
+        for k, v in panwrap_loaded.items():
+            p[k] = v
+        if 'pandoc-options' in panwrap_loaded.keys():
+            p['pandoc-options'] = p['pandoc-options-default'] + panwrap_loaded['pandoc-options']
+        if 'in-header-lines' in panwrap_loaded.keys():
+            p['in-header-lines'] = p['in-header-lines-default'] + panwrap_loaded['in-header-lines']
+        if 'before-body-lines' in panwrap_loaded.keys():
+            p['before-body-lines'] = p['before-body-lines-default'] + panwrap_loaded['before-body-lines']
+
+        #
+        # Process panwrap settings
+        #
+        for key, val in panwrap.items():
+            # Skip values that are 'none'
+            if val is None:
+                pass
+            # 1. output
+            elif key == 'output':
+                if isinstance(val, list):
+                    outputs = val
+                else:
+                    outputs = [val]
+            # 2. header-lines/body-lines
+            elif (key == 'in-header-lines') or (key == 'before-body-lines'):
+                # Special case for header and body
+                tempfiles[key] = os.path.join(basepath,
+                                              '{}-{}{}'.format(basefile,
+                                                               key, extension))
+                with open(tempfiles[key], 'w') as f:
+                    [f.write(v + '\n') for v in val]
+                pandoc_exec.append('--include-{}={}'.format(
+                                   key.replace('-lines', ''), tempfiles[key]))
+            # 3. pandoc-options
+            elif key == 'pandoc-options':
+                for item in val:
+                    # Make sure that all spaces are removed
+                    pandoc_exec.extend(item.split())
+            # 4. template variables
+            elif key == 'template':
+                pth = os.path.splitext(val)[0] + '.yaml'
+                # Expand panwrap plugin path if '{PANWRAP}'' is in pth
+                panwrap_path = os.path.dirname(os.path.abspath(__file__))
+                pth = pth.format(PANWRAP=panwrap_path)
+                # If pth is still relative, we make it absolute with the
+                # source file directory as base directory
+                if not os.path.isabs(pth):
+                    pth = os.path.join(basepath, pth)
+                variables_loaded = _parse_yaml(pth)
+                for k, v in variables_loaded.items():
+                    variables[k] = v
+
+        #
+        # Write variables YAML block at end of temporary document
+        #
+        source_temp = os.path.join(basepath, basefile + '-temp' + extension)
+        shutil.copyfile(source, source_temp)
+        tempfiles['source_temp'] = source_temp
+        with open(source_temp, 'a') as f:
+            f.write('\n---\n')
+            yaml.dump(variables, f)
+            f.write('---\n')
+
+        #
+        # Do the rest in a separate thread so that Sublime Text doesn't hang
+        #
+        sublime.set_timeout_async(lambda: self.async_run(tempfiles, outputs,
+                                  basefile, basepath, source_temp, pandoc_exec),
+                                  0)
+
+    def async_run(self, tempfiles, outputs, basefile, basepath, source_temp,
+                  pandoc_exec):
+        # Add a working marker to status bar
+        view = sublime.active_window().active_view()
+        view.set_status('panwrap_working', '[Panwrap is working...]')
+
+        #
+        # Set output filenames and call pandoc
+        #
+        errors = []
+        files = []
+        for output in outputs:
+            f = '{}.{}'.format(basefile, output)
+            files.append(f)
+            o = '--output=' + os.path.join(basepath, f)
+            execute = pandoc_exec + [o] + [source_temp]
+            print('>>> Executing: ' + ' '.join(execute))
+            pandoc_path = self.plugin_settings.get('pandoc_path')
+            tex_path = self.plugin_settings.get('tex_path')
+            env = {'PATH': tex_path + ':' + pandoc_path + ':' + os.environ['PATH'],
+                   'HOME': os.environ['HOME']}
+            try:
+                subprocess.check_output(execute, stderr=subprocess.STDOUT,
+                                        env=env, cwd=basepath)
+            except subprocess.CalledProcessError as err:
+                print('Pandoc error.')
+                errors.append(err.returncode)
+                print('Output: {}'.format(err.output))
+
+        #
+        # Clean up temporary files
+        #
+        keep_tempfiles = False
+        if tempfiles and not keep_tempfiles:
+            for k in tempfiles:
+                os.remove(tempfiles[k])
+
+        # Remove the working marker from status bar
+        view.erase_status('panwrap_working')
+
+        #
+        # Display outcome
+        #
+        if sublime.platform() == 'osx':
+            icons = {'error': '❌', 'success': '✅'}
+        else:
+            icons = {'error': '[ERROR]', 'success': '[SUCCESS]'}
+        if len(errors) > 0:
+            error = '{i} Panwrap: {e} error(s)'.format(i=icons['error'],
+                                                       e=len(errors))
+            sublime.status_message(error)
+        else:
+            if len(outputs) > 1:
+                multi = 's'
+            else:
+                multi = ''
+            success = ('{i} Panwrap: wrote '
+                       'file{m}: {f}'.format(i=icons['success'], m=multi,
+                                             f=files))
+            sublime.status_message(success)
 
 
-# If script is called directly, read command-line arguments
-# and call process_input accordingly.
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process `file.md` with '
-                                     'pandoc, and write output to `file.pdf`.')
-    parser.add_argument('file', metavar='file', type=str, help='Input file.')
-    parser.add_argument('-o', '--output', metavar='..', type=str, default='pdf',
-                        help='Pandoc output format (default: pdf).')
-    parser.add_argument('-t', '--template', metavar='..', dest='template',
-                        type=str, help='Path to custom template (default: use '
-                        'setting from {panpy_dir}/global.conf '
-                        'or pandoc default).')
-    parser.add_argument('-c', '--csl', metavar='..', dest='csl', type=str,
-                        help='Path to custom CSL file (default: use setting '
-                        'from {panpy_dir}/global.conf)')
-    parser.add_argument('--pandoc-options', metavar='..', dest='pandoc_options',
-                        type=str, help='Additional options to pass to pandoc '
-                        '(like so: --pandoc-options="++foo=bar ++option").')
-    parser.add_argument('--no-bib', dest='bib', action='store_const',
-                        const=False, default=True,
-                        help='Do not process bibliography.')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_const',
-                        const=True, default=False, help='Show more details.')
-    parser.add_argument('--panpy-dir', dest='panpydir', type=str,
-                        help='Set panpy_dir, the directory where the script and'
-                        ' configuration files reside (default: ".")')
-    args = parser.parse_args()
-    p = process_input(args.file, output_format=args.output,
-                      template=args.template,
-                      csl=args.csl, pandoc_options=args.pandoc_options,
-                      bib=args.bib, verbose=args.verbose,
-                      panpy_dir=args.panpydir)
+PROCESSOR = PandocProcessor()
+
+
+def plugin_loaded():
+    PROCESSOR.plugin_loaded_setup()

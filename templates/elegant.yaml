@@ -1,0 +1,27 @@
+# The values set here are overridden first by custom template settings and then document settings
+
+# Geometry settings
+papersize: a4paper
+geometry: ['hmargin=4.0cm', 'vmargin=3.0cm']
+
+# Font settings
+# The sizes available via extarticle are 8pt, 9pt, 10pt, 11pt, 12pt, 14pt, 17pt, and 20pt. (vs. 8pt, 9pt and 10pt for regular article class)
+fontsize: 11pt
+mainfont: Chaparral Pro
+sansfont: Helvetica Neue Light
+monofont: Source Code Pro
+
+# Hyperref colors
+urlcolor: '[rgb]{0,0.25,0.5}'
+linkcolor: '[rgb]{0,0.25,0.5}'
+
+# Set toc to any string to enable table of contents
+toc:
+
+
+# header:\linespread{1.3}
+# header:\usepackage{titlesec}
+# header:\titleformat*{\section}{\Large\bfseries\rmfamily}
+# header:\titleformat*{\subsection}{\large\bfseries\rmfamily}
+# header:\titleformat*{\subsubsection}{\large\bfseries\rmfamily}
+# header:\setcounter{tocdepth}{1}

@@ -1,0 +1,23 @@
+# The values set here are overridden first by custom template settings and then document settings
+
+# Geometry settings
+papersize: a4paper
+geometry: ['hmargin=2.0cm', 'vmargin=2.5cm']
+
+# Font settings
+# The sizes available via extarticle are 8pt, 9pt, 10pt, 11pt, 12pt, 14pt, 17pt, and 20pt. (vs. 8pt, 9pt and 10pt for regular article class)
+fontsize: 12pt
+mainfont: Baskerville
+sansfont: Helvetica
+monofont: Consolas
+
+# Hyperref colors (refcolor is defined in default_panwrap.yaml)
+urlcolor: refcolor
+linkcolor: refcolor
+
+# Set toc to any string to enable table of contents
+toc:
+
+# Bibliography and citation style
+bibliography: '~/.bib/library.bib'  # If none, do not process bibliography
+csl: '~/.csl/elsevier-harvard.csl'  # Can be none if bibliography is none too

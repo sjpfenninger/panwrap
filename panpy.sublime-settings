@@ -1,14 +1,13 @@
 {
-    // Pandoc binary to use
-    "pandoc": "/usr/local/bin/pandoc",
+    // Path to pandoc binary
+    "pandoc_path": "/usr/local/bin",
 
-    // default_config_block holds the template settings used for pandoc's default template
-    "default_config_block": "themes/default.conf",
+    // LaTeX binary path
+    "tex_path": "/usr/texbin",
 
-    "paths": {
-        // If template not set below, panpy uses pandoc's default template
-        // "template": "themes/elegant.tex",
-        "bibliography": "~/.bib/library.bib",
-        "csl": "~/.csl/elsevier-harvard.csl"
-    }
+    // Preview tool, default is 'open -a Marked' to open Marked on OS X
+    "preview": "open -a Marked",
+
+    // PDF viewer, default of 'open' works for Mac OS X only
+    "pdf_viewer": "open"
 }

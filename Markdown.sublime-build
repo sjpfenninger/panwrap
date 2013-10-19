@@ -1,5 +1,0 @@
-{
-    "cmd": ["$packages/Panpy/panpy.py", "--verbose", "--panpy-dir=$packages/Panpy", "$file"],
-    "selector": "source.md",
-    "path": "/usr/texbin:$PATH"
-}
