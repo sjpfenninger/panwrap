@@ -61,7 +61,7 @@ class PreviewCommand(sublime_plugin.ApplicationCommand):
 
 class PandocProcessor(object):
     def plugin_loaded_setup(self):
-        self.plugin_settings_file = 'panpy.sublime-settings'
+        self.plugin_settings_file = 'panwrap.sublime-settings'
         self.plugin_settings = sublime.load_settings(self.plugin_settings_file)
 
     def process_input(self, source):
@@ -78,9 +78,9 @@ class PandocProcessor(object):
         # Initialize pandoc_exec as a list with one item
         pandoc_exec = ['pandoc']
         panwrap = _parse_yaml(sublime.packages_path()
-                              + '/panpy/default_panwrap.yaml')
+                              + '/panwrap/default_panwrap.yaml')
         variables = _parse_yaml(sublime.packages_path()
-                                + '/panpy/default_variables.yaml')
+                                + '/panwrap/default_variables.yaml')
 
         #
         # Find and load panwrap settings
