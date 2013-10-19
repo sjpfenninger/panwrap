@@ -1,6 +1,9 @@
+import codecs
 import os
 import shutil
 import subprocess
+
+from .lib import md2bib
 from .lib import yaml
 
 import sublime
@@ -156,6 +159,24 @@ class PandocProcessor(object):
                 variables_loaded = _parse_yaml(pth)
                 for k, v in variables_loaded.items():
                     variables[k] = v
+            # 5. bibliography extraction
+            elif key == 'extract_bibliography':
+                if val['extract']:
+                    # Extract citation keys from source file
+                    keys = md2bib.getKeysFromMD(source)
+                    # Read source bibliography and generate subset
+                    with codecs.open(variables['bibliography'],
+                                     'r', 'utf-8') as f:
+                        entries = md2bib.parseBibTex(f.readlines())
+                    subset = md2bib.subsetBibliography(entries, keys)
+                    # Write extracted subset to new bibliography file
+                    bibsubset_file = os.path.join(basepath, basefile + '.bib')
+                    with codecs.open(bibsubset_file, 'w', 'utf-8') as f:
+                        md2bib.emitBibliography(subset, f)
+                    # If set not to keep, add to temp files to be removed later
+                    if not val['keep']:
+                        tempfiles['bibsubset_file'] = bibsubset_file
+                    variables['bibliography'] = bibsubset_file
 
         #
         # Write variables YAML block at end of temporary document

@@ -1,8 +1,16 @@
-# Panwrap: Pandoc wrapper for Sublime Text
+## Panwrap -- a pandoc wrapper for Sublime Text
 
 **Work in progress**
 
+## Acknowledgements
+
+Includes the [PyYAML](https://bitbucket.org/xi/pyyaml) library (MIT licensed).
+
+Includes [md2bib.py](https://github.com/reagle/pandoc-wrappers/blob/master/md2bib.py) from [reagle/pandoc-wrappers](https://github.com/reagle/pandoc-wrappers) (GPLv3 licensed).
+
 ## License ##
+
+**GPLv3**
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

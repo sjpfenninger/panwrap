@@ -1,21 +1,29 @@
-# Additional pandoc options (added to pandoc-options-defaults)
+# Pandoc options
+pandoc-options-default: ['--latex-engine=xelatex', '--smart', '--parse-raw', '--columns=98', '--filter pandoc-citeproc']
+
+# Additional pandoc options
+# (added to default specified above, use this inside source file YAML block to add without overwriting defaults)
 pandoc-options:
+
+# Lines to add to header or just inside body but before content starts
+in-header-lines-default: ['\definecolor{refcolor}{rgb}{0,0.25,0.5}']
+before-body-lines-default:
+
+# Additional header/body lines
+# (added to default specified above, use this inside source file YAML block to add without overwriting defaults)
+in-header-lines:
+before-body-lines:
+
+# List of output format extensions
+output: ['pdf']
+
+# Extract the subset of cited items from the (possibly large) bibliography given in the 'bibliography' variable?
+# This can help to speed up processing of very large bibliographies, and is useful to retain a copy of the bibliography together with the source document.
+extract_bibliography:
+    extract: true
+    keep: true  # Keep the extracted bibliography as {source_file}.bib in the source file's directory?
 
 # Template can be none or path to a template file (absolute or relative to the source file being processed)
 # To make it relative to the panwrap directory, use '{PANWRAP}', for example:
 # template: '{PANWRAP}/templates/elegant.tex'
 template:
-
-# Lines to add to header or body (list of strings, added to defaults defined below)
-in-header-lines:
-before-body-lines:
-
-#
-# Defaults
-#
-
-# To override, these can also be redefined inside a source file
-pandoc-options-default: ['--latex-engine=xelatex', '--smart', '--parse-raw', '--columns=98', '--filter pandoc-citeproc']
-in-header-lines-default: ['\definecolor{refcolor}{rgb}{0,0.25,0.5}']
-before-body-lines-default:
-output: ['pdf']
