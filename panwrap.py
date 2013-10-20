@@ -14,8 +14,9 @@ def _get_file_name():
     return(sublime.active_window().active_view().file_name())
 
 
-def _parse_yaml(f):
-    y = yaml.load(open(f, 'r'))
+def _parse_yaml(src):
+    with open(src, 'r') as f:
+        y = yaml.load(f)
     path_entries = ['csl', 'bibliography', 'template']
     for e in path_entries:
         if (e in y) and (y[e] is not None):
@@ -26,7 +27,8 @@ def _parse_yaml(f):
 def _find_blocks(source, start_markers=['---'], end_markers=['---', '...']):
     start_markers = tuple(start_markers)
     end_markers = tuple(end_markers)
-    lines = open(source).readlines()
+    with open(source, 'r') as f:
+        lines = f.readlines()
     block_id = 0
     blocks = {}
     parsing = False
