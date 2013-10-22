@@ -27,3 +27,7 @@ extract_bibliography:
 # To make it relative to the panwrap directory, use '{PANWRAP}', for example:
 # template: '{PANWRAP}/templates/elegant.tex'
 template:
+
+# Debug settings
+debug:
+    keep_tempfiles: false

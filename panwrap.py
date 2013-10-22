@@ -207,14 +207,23 @@ class PandocProcessor(object):
             f.write('---\n')
 
         #
+        # Read debug settings
+        #
+        if (('debug' in panwrap and 'keep_tempfiles' in panwrap['debug']
+             and panwrap['debug']['keep_tempfiles'] is True)):
+            keep_tempfiles = True
+        else:
+            keep_tempfiles = False
+
+        #
         # Do the rest in a separate thread so that Sublime Text doesn't hang
         #
         sublime.set_timeout_async(lambda: self.async_run(tempfiles, outputs,
-                                  basefile, basepath, source_temp, pandoc_exec),
-                                  0)
+                                  basefile, basepath, source_temp, pandoc_exec,
+                                  keep_tempfiles), 0)
 
     def async_run(self, tempfiles, outputs, basefile, basepath, source_temp,
-                  pandoc_exec):
+                  pandoc_exec, keep_tempfiles=False):
         # Add a working marker to status bar
         view = sublime.active_window().active_view()
         view.set_status('panwrap_working', '[Panwrap is working...]')
@@ -246,7 +255,6 @@ class PandocProcessor(object):
         #
         # Clean up temporary files
         #
-        keep_tempfiles = False
         if tempfiles and not keep_tempfiles:
             for k in tempfiles:
                 os.remove(tempfiles[k])
