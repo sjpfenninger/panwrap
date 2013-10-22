@@ -53,8 +53,8 @@ def emitEntry(identifier, values, outfd):
     outfd.write('@%s{%s,\n' % (values['entry_type'], identifier))
     for field, value in values.items():
         if field != 'entry_type':
-            outfd.write('   %s = {%s},\n' % (field, value))
-    outfd.write("}\n")
+            outfd.write('    %s = {%s},\n' % (field, value))
+    outfd.write("}\n\n")
 
 
 def emitBibliography(entries, outfd):
@@ -79,7 +79,7 @@ def subsetBibliography(entries, keys):
 def getKeysFromMD(filename):
     """Return a list of keys used in a markdown document"""
 
-    text = open(filename, 'r').read()
+    text = open(filename, 'r', encoding='utf-8').read()
     text = text.split('***END OF FILE***')[0]
     finds = re.findall('@(.*?)[\.,:;\] ]', text)
     return finds
@@ -118,11 +118,11 @@ if '__main__' == __name__:
         logging.basicConfig(level=log_level, format = LOG_FORMAT)
 
     if args.out_filename:
-        outfd = open(args.out_filename, 'w')
+        outfd = open(args.out_filename, 'w', encoding='utf-8')
     else:
         outfd = sys.stdout
 
-    entries = parseBibTex(open(BIBFILE, 'r').readlines())
+    entries = parseBibTex(open(BIBFILE, 'r', encoding='utf-8').readlines())
     if args.keys:
         keys = args.keys[0].split(',')
         info("arg keys = '%s'" % keys)

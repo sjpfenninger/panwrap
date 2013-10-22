@@ -2,6 +2,8 @@
 
 **Work in progress**
 
+Only tested on Mac OS X and Sublime Text 3.
+
 ## Acknowledgements
 
 Includes the [PyYAML](https://bitbucket.org/xi/pyyaml) library (MIT licensed).

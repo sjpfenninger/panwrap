@@ -1,4 +1,3 @@
-import codecs
 import os
 import shutil
 import subprocess
@@ -15,7 +14,7 @@ def _get_file_name():
 
 
 def _parse_yaml(src):
-    with open(src, 'r') as f:
+    with open(src, 'r', encoding='utf-8') as f:
         y = yaml.load(f)
     path_entries = ['csl', 'bibliography', 'template']
     for e in path_entries:
@@ -27,7 +26,7 @@ def _parse_yaml(src):
 def _find_blocks(source, start_markers=['---'], end_markers=['---', '...']):
     start_markers = tuple(start_markers)
     end_markers = tuple(end_markers)
-    with open(source, 'r') as f:
+    with open(source, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     block_id = 0
     blocks = {}
@@ -139,7 +138,7 @@ class PandocProcessor(object):
                 tempfiles[key] = os.path.join(basepath,
                                               '{}-{}{}'.format(basefile,
                                                                key, extension))
-                with open(tempfiles[key], 'w') as f:
+                with open(tempfiles[key], 'w', encoding='utf-8') as f:
                     [f.write(v + '\n') for v in val]
                 pandoc_exec.append('--include-{}={}'.format(
                                    key.replace('-lines', ''), tempfiles[key]))
@@ -167,13 +166,13 @@ class PandocProcessor(object):
                     # Extract citation keys from source file
                     keys = md2bib.getKeysFromMD(source)
                     # Read source bibliography and generate subset
-                    with codecs.open(variables['bibliography'],
-                                     'r', 'utf-8') as f:
+                    with open(variables['bibliography'], 'r',
+                              encoding='utf-8') as f:
                         entries = md2bib.parseBibTex(f.readlines())
                     subset = md2bib.subsetBibliography(entries, keys)
                     # Write extracted subset to new bibliography file
                     bibsubset_file = os.path.join(basepath, basefile + '.bib')
-                    with codecs.open(bibsubset_file, 'w', 'utf-8') as f:
+                    with open(bibsubset_file, 'w', encoding='utf-8') as f:
                         md2bib.emitBibliography(subset, f)
                     # If set not to keep, add to temp files to be removed later
                     if not val['keep']:
@@ -186,7 +185,7 @@ class PandocProcessor(object):
         source_temp = os.path.join(basepath, basefile + '-temp' + extension)
         shutil.copyfile(source, source_temp)
         tempfiles['source_temp'] = source_temp
-        with open(source_temp, 'a') as f:
+        with open(source_temp, 'a', encoding='utf-8') as f:
             f.write('\n---\n')
             yaml.dump(variables, f)
             f.write('---\n')
@@ -218,7 +217,8 @@ class PandocProcessor(object):
             pandoc_path = self.plugin_settings.get('pandoc_path')
             tex_path = self.plugin_settings.get('tex_path')
             env = {'PATH': tex_path + ':' + pandoc_path + ':' + os.environ['PATH'],
-                   'HOME': os.environ['HOME']}
+                   'HOME': os.environ['HOME'],
+                   'LANG': 'en_US.UTF-8'}  # Force UTF-8
             try:
                 subprocess.check_output(execute, stderr=subprocess.STDOUT,
                                         env=env, cwd=basepath)
