@@ -8,7 +8,7 @@ Only tested on Mac OS X and Sublime Text 3.
 
 Includes the [PyYAML](https://bitbucket.org/xi/pyyaml) library (MIT licensed).
 
-Includes [md2bib.py](https://github.com/reagle/pandoc-wrappers/blob/master/md2bib.py) from [reagle/pandoc-wrappers](https://github.com/reagle/pandoc-wrappers) (GPLv3 licensed).
+Includes a modified version of [md2bib.py](https://github.com/reagle/pandoc-wrappers/blob/master/md2bib.py) from [reagle/pandoc-wrappers](https://github.com/reagle/pandoc-wrappers) (GPLv3 licensed).
 
 ## License ##
 
