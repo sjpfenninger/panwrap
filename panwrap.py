@@ -13,9 +13,13 @@ def _get_file_name():
     return(sublime.active_window().active_view().file_name())
 
 
-def _parse_yaml(src):
-    with open(src, 'r', encoding='utf-8') as f:
-        y = yaml.load(f)
+def _parse_yaml(src, src_is_file=True):
+    """src is treated as path to a file, except if src_is_file=False"""
+    if src_is_file:
+        with open(src, 'r', encoding='utf-8') as f:
+            y = yaml.safe_load(f)
+    else:
+        y = yaml.safe_load(src)
     path_entries = ['csl', 'bibliography', 'template']
     for e in path_entries:
         if (e in y) and (y[e] is not None):
@@ -44,10 +48,23 @@ def _find_blocks(source, start_markers=['---'], end_markers=['---', '...']):
     return blocks
 
 
+def _display_status(message, msg_type='notification', title='Panwrap:'):
+    """type can be 'notification', 'success' or 'error'"""
+    if sublime.platform() == 'osx':
+        icons = {'notification': '[❕]', 'error': '[❌]', 'success': '[✅]'}
+    else:
+        icons = {'notification': '[i]', 'error': '[err]', 'success': '[ok]'}
+    sublime.status_message(icons[msg_type] + ' ' + title + ' ' + message)
+
+
 class ProcessPandocCommand(sublime_plugin.ApplicationCommand):
     def run(self, **args):
         f = _get_file_name()
-        PROCESSOR.process_input(f)
+        if not PROCESSOR.running:
+            PROCESSOR.process_input(f)
+        else:
+            msg = 'Already running! Wait for it to finish.'
+            _display_status(msg)
 
 
 class OpenPdfCommand(sublime_plugin.ApplicationCommand):
@@ -67,6 +84,7 @@ class PandocProcessor(object):
     def plugin_loaded_setup(self):
         self.plugin_settings_file = 'panwrap.sublime-settings'
         self.plugin_settings = sublime.load_settings(self.plugin_settings_file)
+        self.running = False
 
     def process_input(self, source):
         """Process `inputfile` with pandoc.
@@ -75,6 +93,7 @@ class PandocProcessor(object):
             p : status code returned by pandoc
 
         """
+        self.running = True
         tempfiles = {}  # Keeps track of temporary files
         source = os.path.expanduser(source)
         basefile, extension = os.path.splitext(source)  # split off extension
@@ -92,15 +111,12 @@ class PandocProcessor(object):
         panwrap_entry = 'panwrap_'
         blocks = _find_blocks(source)
         for _, block in blocks.items():
-            # Try to pass the block as YAML
-            try:
-                y = yaml.load('\n'.join(block))
-            except:  # TODO WHICHERROR
-                continue
+            # Try to parse the block as YAML
+            y = _parse_yaml('\n'.join(block), src_is_file=False)
             # Try to access the panwrap_entry
             try:
                 panwrap_loaded = y[panwrap_entry]
-                break
+                break  # As soon as first panwrap_entry found, abort
             except KeyError:
                 continue
         else:
@@ -147,7 +163,7 @@ class PandocProcessor(object):
                 for item in val:
                     # Make sure that all spaces are removed
                     pandoc_exec.extend(item.split())
-            # 4. template variables
+            # 4. template settings/variables default override
             elif key == 'template':
                 pth = os.path.splitext(val)[0] + '.yaml'
                 # Expand panwrap plugin path if '{PANWRAP}'' is in pth
@@ -241,23 +257,17 @@ class PandocProcessor(object):
         #
         # Display outcome
         #
-        if sublime.platform() == 'osx':
-            icons = {'error': '❌', 'success': '✅'}
-        else:
-            icons = {'error': '[ERROR]', 'success': '[SUCCESS]'}
         if len(errors) > 0:
-            error = '{i} Panwrap: {e} error(s)'.format(i=icons['error'],
-                                                       e=len(errors))
-            sublime.status_message(error)
+            _display_status('{e} error(s)'.format(e=len(errors)),
+                            msg_type='error')
         else:
             if len(outputs) > 1:
                 multi = 's'
             else:
                 multi = ''
-            success = ('{i} Panwrap: wrote '
-                       'file{m}: {f}'.format(i=icons['success'], m=multi,
-                                             f=files))
-            sublime.status_message(success)
+            _display_status('wrote file{m}: {f}'.format(m=multi, f=files),
+                            msg_type='success')
+        self.running = False
 
 
 PROCESSOR = PandocProcessor()
