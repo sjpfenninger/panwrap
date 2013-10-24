@@ -11,9 +11,10 @@ mainfont: Baskerville
 sansfont: Helvetica
 monofont: Consolas
 
-# Hyperref colors (refcolor is defined in default_panwrap.yaml)
+# Hyperref colors
 urlcolor: refcolor
 linkcolor: refcolor
+citecolor: refcolor
 
 # Set toc to any string to enable table of contents
 toc:

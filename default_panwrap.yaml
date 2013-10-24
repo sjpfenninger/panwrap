@@ -6,7 +6,10 @@ pandoc-options-default: ['--latex-engine=xelatex', '--smart', '--parse-raw', '--
 pandoc-options:
 
 # Lines to add to header or just inside body but before content starts
-in-header-lines-default: ['\definecolor{refcolor}{rgb}{0,0.25,0.5}']
+in-header-lines-default: [
+    '\usepackage{xcolor}',
+    '\definecolor{refcolor}{rgb}{0,0.25,0.5}',
+    ]
 before-body-lines-default:
 
 # Additional header/body lines
