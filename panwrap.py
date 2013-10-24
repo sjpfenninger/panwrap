@@ -167,7 +167,7 @@ class PandocProcessor(object):
                     pandoc_exec.extend(item.split())
             # 4. template settings/variables default override
             elif key == 'template':
-                pth = os.path.splitext(val)[0] + '.yaml'
+                pth = val
                 # Expand panwrap plugin path if '{PANWRAP}'' is in pth
                 panwrap_path = os.path.dirname(os.path.abspath(__file__))
                 pth = pth.format(PANWRAP=panwrap_path)
@@ -175,6 +175,10 @@ class PandocProcessor(object):
                 # source file directory as base directory
                 if not os.path.isabs(pth):
                     pth = os.path.join(basepath, pth)
+                # Add template to pandoc-exec options
+                pandoc_exec.extend(['--template', pth])
+                # Load default variables from template
+                pth = os.path.splitext(pth)[0] + '.yaml'
                 variables_loaded = _parse_yaml(pth)
                 for k, v in variables_loaded.items():
                     variables[k] = v
