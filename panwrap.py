@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import tempfile
 
 from .lib import md2bib
 from .lib import yaml
@@ -94,6 +95,7 @@ class PandocProcessor(object):
 
         """
         self.running = True
+        tempdir = tempfile.mkdtemp()
         tempfiles = {}  # Keeps track of temporary files
         source = os.path.expanduser(source)
         basefile, extension = os.path.splitext(source)  # split off extension
@@ -151,7 +153,7 @@ class PandocProcessor(object):
             # 2. header-lines/body-lines
             elif (key == 'in-header-lines') or (key == 'before-body-lines'):
                 # Special case for header and body
-                tempfiles[key] = os.path.join(basepath,
+                tempfiles[key] = os.path.join(tempdir,
                                               '{}-{}{}'.format(basefile,
                                                                key, extension))
                 with open(tempfiles[key], 'w', encoding='utf-8') as f:
@@ -187,20 +189,19 @@ class PandocProcessor(object):
                         entries = md2bib.parseBibTex(f.readlines())
                     subset = md2bib.subsetBibliography(entries, keys)
                     # Write extracted subset to new bibliography file
-                    bibsubset_file = os.path.join(basepath, basefile + '.bib')
+                    bibsubset_file = os.path.join(tempdir, basefile + '.bib')
                     with open(bibsubset_file, 'w', encoding='utf-8') as f:
                         md2bib.emitBibliography(subset, f)
-                    # If set not to keep, add to temp files to be removed later
-                    if not val['keep']:
-                        tempfiles['bibsubset_file'] = bibsubset_file
+                    # If set to keep, we copy the bib file into basepath
+                    if val['keep']:
+                        shutil.copy(bibsubset_file, basepath)
                     variables['bibliography'] = bibsubset_file
 
         #
         # Write variables YAML block at end of temporary document
         #
-        source_temp = os.path.join(basepath, basefile + '-temp' + extension)
+        source_temp = os.path.join(tempdir, basefile + '-temp' + extension)
         shutil.copyfile(source, source_temp)
-        tempfiles['source_temp'] = source_temp
         with open(source_temp, 'a', encoding='utf-8') as f:
             f.write('\n---\n')
             yaml.dump(variables, f)
@@ -218,11 +219,11 @@ class PandocProcessor(object):
         #
         # Do the rest in a separate thread so that Sublime Text doesn't hang
         #
-        sublime.set_timeout_async(lambda: self.async_run(tempfiles, outputs,
+        sublime.set_timeout_async(lambda: self.async_run(tempdir, outputs,
                                   basefile, basepath, source_temp, pandoc_exec,
                                   keep_tempfiles), 0)
 
-    def async_run(self, tempfiles, outputs, basefile, basepath, source_temp,
+    def async_run(self, tempdir, outputs, basefile, basepath, source_temp,
                   pandoc_exec, keep_tempfiles=False):
         # Add a working marker to status bar
         view = sublime.active_window().active_view()
@@ -255,9 +256,10 @@ class PandocProcessor(object):
         #
         # Clean up temporary files
         #
-        if tempfiles and not keep_tempfiles:
-            for k in tempfiles:
-                os.remove(tempfiles[k])
+        if keep_tempfiles:
+            print('Temporary folder not deleted: {}'.format(tempdir))
+        else:
+            shutil.rmtree(tempdir)
 
         # Remove the working marker from status bar
         view.erase_status('panwrap_working')
