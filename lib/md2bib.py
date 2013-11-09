@@ -1,34 +1,25 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
-# (c) Copyright 2011-2012 by Joseph Reagle
-# Licensed under the GPLv3, see <http://www.gnu.org/licenses/gpl-3.0.html>
+"""
+Functions to extract bibliographic keys from a BibTeX file, using the
+keys used in a Markdown or LaTeX file.
 
-"""Extract a subset of bibliographic keys from BIBFILE
-using those keys found in a markdown file or specified
-in argument."""
+Modified from md2bib.py [1], which is (c) Copyright 2011-2012 by
+Joseph Reagle and licensed under the GPLv3.
 
-import codecs
+[1] https://github.com/reagle/pandoc-wrappers/
+
+"""
+
 from collections import OrderedDict
-import locale
 import logging
-from os import chdir, environ, mkdir, rename
-from os.path import abspath, exists, splitext
 import re
-import sys
 
-HOME = environ['HOME']
-BIBFILE = HOME + '/joseph/readings.bib'
 
-log_level = 100 # default
-critical = logging.critical
-info = logging.info
-dbg = logging.debug
-
-def parseBibTex(text):
-    '''Return a dictionary of entry dictionaries, each with a field/value.
+def parse_bibtex(text):
+    """Return a dictionary of entry dictionaries, each with a field/value.
     The parser is simple/fast *and* inflexible, unlike the proper but
-    slow parsers bibstuff and pyparsing-based parsers.'''
+    slow parsers bibstuff and pyparsing-based parsers.
 
+    """
     entries = OrderedDict()
     key_pat = re.compile('@(\w+){(.*),')
     value_pat = re.compile('[\s]*(\w+)[\s]*=[\s]*{(.*)},?')
@@ -46,10 +37,8 @@ def parseBibTex(text):
     return entries
 
 
-def emitEntry(identifier, values, outfd):
+def emit_entry(identifier, values, outfd):
     """Emit a single bibtex entry."""
-
-    info("writing entry")
     outfd.write('@%s{%s,\n' % (values['entry_type'], identifier))
     for field, value in values.items():
         if field != 'entry_type':
@@ -57,81 +46,46 @@ def emitEntry(identifier, values, outfd):
     outfd.write("}\n\n")
 
 
-def emitBibliography(entries, outfd):
-    """Emit a biblatex file."""
-
+def emit_bibliography(entries, outfd):
+    """Emit a bibtex file."""
     for identifier, values in entries.items():
-        emitEntry(identifier, values, outfd)
+        emit_entry(identifier, values, outfd)
 
 
-def subsetBibliography(entries, keys):
-    """Emit a susbet of a biblatex file based on bibtex keys."""
-
+def subset_bibliography(entries, keys):
+    """Emit a subset of a bibtex file based on bibtex keys."""
     subset = OrderedDict()
     for key in sorted(keys):
         if key in entries:
             subset[key] = entries[key]
         else:
-            critical("%s not in entries" % key)
+            logging.critical("%s not in entries" % key)
             pass
     return subset
 
-def getKeysFromMD(filename):
-    """Return a list of keys used in a markdown document"""
 
+def get_keys_from_document(filename, include_bibtex_style=False):
+    """Return a list of keys used in filename by looking for citations
+    like `@citekey`.
+
+    If include_bibtex_style=True, also look for citations in the
+    `\cite*{key}` style, where `*` can be any character or none.
+
+    """
     text = open(filename, 'r', encoding='utf-8').read()
-    text = text.split('***END OF FILE***')[0]
     finds = re.findall('@(.*?)[\.,:;\] ]', text)
+    finds += re.findall('\\cite.?\[?(?:.+?)?\]?\{(.+?)\}', text)
     return finds
 
-if '__main__' == __name__:
-    import argparse # http://docs.python.org/dev/library/argparse.html
-    arg_parser = argparse.ArgumentParser(
-            description='Extract a subset of bibliographic keys '
-            'from BIBFILE using those keys found in a markdown file '
-            'or specified in argument.')
-    arg_parser.add_argument('files', nargs='?',  metavar='BIBFILE',
-            default = BIBFILE)
-    arg_parser.add_argument("-f", "--find-keys",
-            nargs=1, metavar='FILE',
-            help="find keys in markdown file")
-    arg_parser.add_argument("-k", "--keys", nargs=1,
-            help="use specified KEYS")
-    arg_parser.add_argument('-L', '--log-to-file',
-            action="store_true", default=False,
-            help="log to file %(prog)s.log")
-    arg_parser.add_argument("-o", "--out-filename",
-            help="output results to filename", metavar="FILE")
-    arg_parser.add_argument('-V', '--verbose', action='count', default=0,
-            help="Increase verbosity (specify multiple times for more)")
-    arg_parser.add_argument('--version', action='version', version='TBD')
-    args = arg_parser.parse_args()
 
-    if args.verbose == 1: log_level = logging.CRITICAL
-    elif args.verbose == 2: log_level = logging.INFO
-    elif args.verbose >= 3: log_level = logging.DEBUG
-    LOG_FORMAT = "%(levelno)s %(funcName).5s: %(message)s"
-    if args.log_to_file:
-        logging.basicConfig(filename='md2bib.log', filemode='w',
-            level=log_level, format = LOG_FORMAT)
-    else:
-        logging.basicConfig(level=log_level, format = LOG_FORMAT)
-
-    if args.out_filename:
-        outfd = open(args.out_filename, 'w', encoding='utf-8')
-    else:
-        outfd = sys.stdout
-
-    entries = parseBibTex(open(BIBFILE, 'r', encoding='utf-8').readlines())
-    if args.keys:
-        keys = args.keys[0].split(',')
-        info("arg keys = '%s'" % keys)
-    elif args.find_keys:
-        keys = getKeysFromMD(args.find_keys[0])
-        info("md  keys = '%s'" % keys)
-    else:
-        print("No keys given")
-        sys.exit()
-
-    subset = subsetBibliography(entries, keys)
-    emitBibliography(subset, outfd)
+def extract_bibliography(source_doc, source_bib, target_bib,
+                         include_bibtex_style=False):
+    # Extract citation keys from source file
+    keys = get_keys_from_document(source_doc)
+    # Read source bibliography and generate subset
+    with open(source_bib, 'r', encoding='utf-8') as f:
+        entries = parse_bibtex(f.readlines())
+    subset = subset_bibliography(entries, keys)
+    # Write extracted subset to new bibliography file
+    with open(target_bib, 'w', encoding='utf-8') as f:
+        emit_bibliography(subset, f)

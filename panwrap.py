@@ -179,25 +179,23 @@ class PandocProcessor(object):
                 pandoc_exec.extend(['--template', pth])
                 # Load default variables from template
                 pth = os.path.splitext(pth)[0] + '.yaml'
-                variables_loaded = _parse_yaml(pth)
-                for k, v in variables_loaded.items():
-                    variables[k] = v
+                try:
+                    variables_loaded = _parse_yaml(pth)
+                    for k, v in variables_loaded.items():
+                        variables[k] = v
+                except FileNotFoundError:
+                    # If the template has no yaml settings, we ignore that
+                    pass
             # 5. bibliography extraction
             elif key == 'extract_bibliography':
                 if val['extract']:
-                    # Extract citation keys from source file
-                    keys = md2bib.getKeysFromMD(source)
-                    # Read source bibliography and generate subset
-                    with open(variables['bibliography'], 'r',
-                              encoding='utf-8') as f:
-                        entries = md2bib.parseBibTex(f.readlines())
-                    subset = md2bib.subsetBibliography(entries, keys)
-                    # Write extracted subset to new bibliography file
                     bibsubset_file = os.path.join(tempdir, basefile + '.bib')
-                    with open(bibsubset_file, 'w', encoding='utf-8') as f:
-                        md2bib.emitBibliography(subset, f)
-                    # If set to keep, we copy the bib file into basepath
+                    md2bib.extract_bibliography(source,
+                                                variables['bibliography'],
+                                                bibsubset_file,
+                                                include_bibtex_style=True)
                     if val['keep']:
+                        # If set to keep, we copy the bib file into basepath
                         shutil.copy(bibsubset_file, basepath)
                     variables['bibliography'] = bibsubset_file
 
