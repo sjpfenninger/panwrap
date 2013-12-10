@@ -130,12 +130,16 @@ class PandocProcessor(object):
         p = panwrap
         for k, v in panwrap_loaded.items():
             p[k] = v
-        if 'pandoc-options' in panwrap_loaded.keys():
-            p['pandoc-options'] = p['pandoc-options-default'] + panwrap_loaded['pandoc-options']
-        if 'in-header-lines' in panwrap_loaded.keys():
-            p['in-header-lines'] = p['in-header-lines-default'] + panwrap_loaded['in-header-lines']
-        if 'before-body-lines' in panwrap_loaded.keys():
-            p['before-body-lines'] = p['before-body-lines-default'] + panwrap_loaded['before-body-lines']
+        # Instead of using only panwrap_loaded, we go back and replace a few
+        # things with a combination of panwra_loaded and defaults, and make
+        # sure that the defaults are set if panwrap_loaded doesn't contain them!
+        keys_with_defaults = ['pandoc-options', 'in-header-lines',
+                              'before-body-lines']
+        for k in keys_with_defaults:
+            if k in panwrap_loaded.keys():
+                p[k] = p[k + '-default'] + panwrap_loaded[k]
+            else:
+                p[k] = p[k + '-default']
 
         #
         # Process panwrap settings

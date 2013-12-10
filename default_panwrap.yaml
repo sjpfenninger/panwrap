@@ -1,5 +1,5 @@
 # Pandoc options
-pandoc-options-default: ['--latex-engine=xelatex', '--smart', '--parse-raw', '--columns=98', '--filter pandoc-citeproc']
+pandoc-options-default: ['--latex-engine=lualatex', '--smart', '--parse-raw', '--columns=98', '--filter pandoc-citeproc']
 
 # Additional pandoc options
 # (added to default specified above, use this inside source file YAML block to add without overwriting defaults)
@@ -24,7 +24,7 @@ output: ['pdf']
 # This can help to speed up processing of very large bibliographies, and is useful to retain a copy of the bibliography together with the source document.
 extract_bibliography:
     extract: true
-    keep: true  # Keep the extracted bibliography as {source_file}.bib in the source file's directory?
+    keep: false  # Keep the extracted bibliography as {source_file}.bib in the source file's directory?
 
 # Template can be none or path to a template file (absolute or relative to the source file being processed)
 # To make it relative to the panwrap directory, use '{PANWRAP}', for example:
