@@ -127,19 +127,46 @@ class PandocProcessor(object):
         #
         # Combine loaded panwrap settings with defaults_panwrap
         #
+        def _setting(s):
+            splitted = s.strip('--').split('=')
+            if len(splitted) == 1:  # Add None which will be the key's value
+                splitted.append(None)
+            return splitted
+
+        def _dict_settings(l):
+            return {k: v for k, v in [_setting(i) for i in l]}
+
+        def _list_settings(d):
+            l = []
+            for k in d:
+                if d[k] is None:
+                    l.append('--' + k)
+                else:
+                    l.append('--' + k + '=' + d[k])
+            return l
+
         p = panwrap
         for k, v in panwrap_loaded.items():
             p[k] = v
-        # Instead of using only panwrap_loaded, we go back and replace a few
-        # things with a combination of panwra_loaded and defaults, and make
-        # sure that the defaults are set if panwrap_loaded doesn't contain them!
-        keys_with_defaults = ['pandoc-options', 'in-header-lines',
-                              'before-body-lines']
+
+        # Simply add defaults + doc-specific settings for header and
+        # body lines
+        keys_with_defaults = ['in-header-lines', 'before-body-lines']
         for k in keys_with_defaults:
+            p[k] = p[k + '-default']
             if k in panwrap_loaded.keys():
-                p[k] = p[k + '-default'] + panwrap_loaded[k]
-            else:
-                p[k] = p[k + '-default']
+                p[k] = p[k] + panwrap_loaded[k]
+
+        # Intelligently overwrite pandoc-options defaults from doc-speficic
+        # settings
+        k = 'pandoc-options'
+        p[k] = p[k + '-default']
+        if k in panwrap_loaded.keys():
+            defaults = _dict_settings(p[k + '-default'])
+            loaded = _dict_settings(panwrap_loaded[k])
+            for kk in loaded:
+                defaults[kk] = loaded[kk]
+            p[k] = _list_settings(defaults)
 
         #
         # Process panwrap settings
