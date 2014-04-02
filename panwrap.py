@@ -87,13 +87,46 @@ class PandocProcessor(object):
         self.plugin_settings = sublime.load_settings(self.plugin_settings_file)
         self.running = False
 
+    def load_panwrap_settings(self, source):
+        """Find and load panwrap settings"""
+        panwrap_entry = 'panwrap_'
+        blocks = _find_blocks(source)
+        for _, block in blocks.items():
+            # Try to parse the block as YAML
+            y = _parse_yaml('\n'.join(block), src_is_file=False)
+            # Try to access the panwrap_entry
+            try:
+                panwrap_loaded = y[panwrap_entry]
+                if not panwrap_loaded:
+                    panwrap_loaded = {}  # Make sure we get a dict
+                break  # As soon as first panwrap_entry found, abort
+            except KeyError:
+                continue
+        else:  # If get through for loop without ever hitting break
+            raise KeyError
+        return panwrap_loaded
+
     def process_input(self, source):
         """Process `inputfile` with pandoc.
 
         Returns:
-            p : status code returned by pandoc
+            p : status code returned by pandoc or None
 
         """
+        try:
+            panwrap_loaded = self.load_panwrap_settings(source)
+        except KeyError:
+            msg = '`panwrap_` block not found, aborting.'
+            _display_status(msg)
+            return None
+        # If we have a panwrap_loaded, try to process it
+        try:
+            return self._process_input(source, panwrap_loaded)
+        except:
+            self.running = False
+            raise
+
+    def _process_input(self, source, panwrap_loaded):
         self.running = True
         tempdir = tempfile.mkdtemp()
         tempfiles = {}  # Keeps track of temporary files
@@ -106,23 +139,6 @@ class PandocProcessor(object):
                               + '/panwrap/default_panwrap.yaml')
         variables = _parse_yaml(sublime.packages_path()
                                 + '/panwrap/default_variables.yaml')
-
-        #
-        # Find and load panwrap settings
-        #
-        panwrap_entry = 'panwrap_'
-        blocks = _find_blocks(source)
-        for _, block in blocks.items():
-            # Try to parse the block as YAML
-            y = _parse_yaml('\n'.join(block), src_is_file=False)
-            # Try to access the panwrap_entry
-            try:
-                panwrap_loaded = y[panwrap_entry]
-                break  # As soon as first panwrap_entry found, abort
-            except KeyError:
-                continue
-        else:
-            panwrap_loaded = {}
 
         #
         # Combine loaded panwrap settings with defaults_panwrap
